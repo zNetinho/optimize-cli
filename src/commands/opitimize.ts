@@ -1,8 +1,9 @@
 import axios from 'axios'
-import { GluegunCommand, filesystem } from 'gluegun'
+import { GluegunCommand } from 'gluegun'
 import * as XLSX from 'xlsx'
-import { downloadImage } from '../services/imageService'
+
 import { otimizaImagem } from '../services/opitimizadorService'
+import { downloadImage } from '../services/imageService'
 
 const command: GluegunCommand = {
   name: 'optimize-all',
@@ -21,7 +22,7 @@ const command: GluegunCommand = {
       const buffer = response.data
 
       // Salvar localmente se necessário TODO: substituir para input do arquivo.
-      filesystem.write('planilha.xlsx', buffer)
+      // filesystem.write('planilha.xlsx', buffer)
 
       // Ler os dados da planilha do buffer
       const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true })
@@ -30,20 +31,24 @@ const command: GluegunCommand = {
 
       // Converter para JSON
       const data = XLSX.utils.sheet_to_json(worksheet)
-
-      const images = []
       // valida dados da planilha e pega somente as linhas com texto.
-      data.forEach((row) => {
-        if (row['A'] !== undefined && row['A'] !== null) {
-          images.push(row['A'])
+      data.forEach(async (row) => {
+        const line = row['A'].split('?')[0]
+        if (
+          line !== undefined &&
+          line !== null &&
+          line !== '' &&
+          !line.includes('imagem')
+        ) {
+          await downloadImage(line)
+        } else {
+          console.log('Linha inválida:', line)
         }
-        const image = downloadImage(row['A'])
-        print.info(image)
       })
 
-      otimizaImagem()
+      await otimizaImagem()
 
-      print.info(images)
+      return print.success('Imagens otimizadas com sucesso!')
     } catch (error) {
       print.error('Erro ao baixar ou ler a planilha.')
       print.error(error.message)
